@@ -14,6 +14,8 @@ import pandas as pd
 import os
 import urllib
 import PyPDF2
+import time
+import glob
 
 #------------------------------------------------
 # Scraping to extract PND text since 1961 to 2018
@@ -149,131 +151,134 @@ for url in clean_links[0:82]:
 #---------------------------
     
 
-# Directorio de trabajo de trabajo de forma absoluta
-# Si esta línea no se corre, el for para extraer el texto del pdf leído no funciona por llamar la ruta de forma relativa
-# En DNP
+# Absolute working directory
+# Necessary for relative call inside big loop
+# DNP
 os.chdir('C:/Users/ScmayorquinS/Desktop/PND Python scraping and mining/PDFs')
-# En casa
+# Home
 os.chdir('C:/Users/CamiloAndrés/Desktop/PND Python scraping and mining/PDFs')
 
 
-# Cargar todos los pdfs en una lista 
+# Load every pdf in list
 
-# En DNP
-files = os.listdir('C:/Users/ScmayorquinS/Desktop/PND Python scraping and mining/PDFs')
-# En casa
-files = os.listdir('C:/Users/CamiloAndrés/Desktop/PND Python scraping and mining/PDFs')
+# DNP
+files = os.listdir('C:/Users/ScmayorquinS/Desktop/PND Python scraping and mining/PDFs')[0:81]
+# Home
+files = os.listdir('C:/Users/CamiloAndrés/Desktop/PND Python scraping and mining/PDFs')[0:81]
+# Natural sort
 files = sorted(files, key=lambda x: int(x.split('.')[0]))
 
-# Lista vacía para rellenar con cada pdf
+# Empty list to fill with every pdf
 Database = []
 
-# Para cada archivo de la lista
+# For each FILE in files
 for FILE in files:
-    # Si termina en .pdf, leerlo en formato binario y pegarlo a la lista
+    # If ends with .pdf, read it in binary format and append it to the list 
     if FILE.endswith('.pdf'):
         data = open(FILE,'rb') 
         Database.append(data)
+        
 
-
-
-
-#----------------------------------------------------------------------------------------------------
-# Aquí es donde debería ir el 'for' para extraer el texto de todo, pero por ahora se puede uno por uno:
-#----------------------------------------------------------------------------------------------------
-
-# Objeto que lee algún pdf a escoger entre la lista de Database, por el ejemplo el cuarto de acuerdo a como se ordenó
-# Hay que arreglar ese orden por el original
-reader_prueba = PyPDF2.PdfFileReader(Database[4])
-
-# Extraer el texto de todas las páginas del pdf escogido, la idea es después de todos los pdfs
-# Variable que contiene el número de páginas
-number_of_pages = reader_prueba.getNumPages()
-# Variable para almacenar contenido, un string
-page_content=""
-# Para cada página en el total de páginas
-for page_number in range(number_of_pages):
-    # Obtener cada una de las páginas
-    page = reader_prueba.getPage(page_number)
-    # Extraer el texto de la página y pegárselo a page_content; repetir hasta todas
-    page_content += page.extractText()
-
-# Page content tendrá el texto en string de un pdf
-
-#-----------------------
-
-# PDF con su texto
-import pandas as pd
-import PyPDF2
-
-import time
-
-# Archivos pdf que se dejan leer, están todos excepto los de índice 0,1 y 79
+# pdf that do not throw an error when reading. All but indexes 0,1 and 79
 pdf_files_working = files[2:81]
 
+# data frame with contents of all pdfs
 tabla_texto = pd.DataFrame(index = [0], columns = ['PDF','Texto'])
 
 fileIndex = 0
 
-#Tiempo de ejecución del bucle
+# Execution time of loop
 t0 = time.time()
 
-# Para cada link de los pdfs que se dejan leer
+# For every pdf that can be read
 for file in pdf_files_working:
-  # abrir en modo binario
+  # Binary
   pdfFileObj = open(file,'rb')
-  # leer con PyPDF2
+  # PyPDF2 magick
   pdfReader = PyPDF2.PdfFileReader(pdfFileObj)
-  # Inicia conteo de páginas
+  # Start page count
   startPage = 0
-  # Para rellenar con el texto
+  # To be filled with text
   text = ''
   cleanText = ''
-  # Mientras que el contador no llegue al número de páginas...
+  # While counter is less than number of pages
   while startPage <= pdfReader.numPages-1:
     pageObj = pdfReader.getPage(startPage)
     text += pageObj.extractText()
     startPage += 1
   pdfFileObj.close()
-  # Para cada palabra dentro del texto leído
+  # For every word inside the text
   for myWord in text:
-    # No sacar spacios
+    # Ignore line skips
     if myWord != '\n':
       cleanText += myWord
-  #text = cleanText.itemize()
-  # texto semilimpio
+  # Almost clean text
   text = cleanText
-  # Crear dataframe de todos los textos
+  # Row for every pdf in the data frame
   newRow = pd.DataFrame(index = [0], columns = ['PDF', 'Texto'])
-  # ir insertando cada nombre y cada texto en el pdf
+  # Insert each value of the columns per row
   newRow.iloc[0]['PDF'] = file
   newRow.iloc[0]['Texto'] = text
-  # Concatenar todos los resultados
+  # Concatenate each generated row to the empty (no so empty after 1 iteration) data frame
   tabla_texto = pd.concat([tabla_texto, newRow], ignore_index=True)        
 
 
 t1 = time.time()
 
+# 20 minutes to process all pdfs more or less
 total = t1-t0
 
-tabla_texto['Texto'][15]
 
+#------------------------------------------------------------
+# As reading all text from the pdfs is a expensive operation,
+# it is better to save the final object from the loop
+#-----------------------------------------------------------
 
-# Insertar texto del Tomo I de Santos II
-import glob
+# Saving object as .py in absolute directory
+import pickle
+ 
+
+ # Select name of desired python object
+with open('tabla_texto.py', 'wb') as text_table_file:
+ 
+  # Select which object to export
+  pickle.dump(tabla_texto, text_table_file)
+  
+  
+# Loading .py object
+  # Step 2
+with open('tabla_texto.py', 'rb') as text_table_file:
+ 
+    # Step 3
+    text_table = pickle.load(text_table_file)
+    
+    
+# If desired, also export to Excel file
+tabla_texto.to_excel("tabla_texto.xlsx")
+
+#-------------
+# Continuation
+#-------------
+
+# Insert text from Santos II Tome I
 os.chdir('C:/Users/ScmayorquinS/Desktop/PND Python scraping and mining/texto tomo I Santos II')
 read_files = glob.glob("*.txt")
 
+# Condense all chapters into one .txt file
 with open("result.txt", "wb") as outfile:
     for f in read_files:
         with open(f, "rb") as infile:
             outfile.write(infile.read())
-# Leer txt
+            
+# Read .txt file
 with open('C:/Users/ScmayorquinS/Desktop/PND Python scraping and mining/texto tomo I Santos II/result.txt', 'rb') as f:
-    tomo_santos = f.read().decode('latin-1').replace(u'\r', u'')
+    santos_tome = f.read().decode('latin-1').replace(u'\r', u'')
 
-row = ['Santos 2014-2018 tomo I', tomo_santos]
-tabla_texto.loc[0] = row
+# Append row to text_table
+row = ['Santos 2014-2018 tomo I', santos_tome]
+text_table.loc[0] = row
+
+
 #-----------------------------------------
 # Análisis de texto
 #-----------------------------------------
@@ -594,29 +599,6 @@ for element in range(len(tokens_enlistados)):
 
 
 
-# Guardar un objeto
 
-# Step 1
-import pickle
- 
 
- # Step 2
-with open('tabla_texto.py', 'wb') as tabla_texto_file:
- 
-  # Step 3
-  pickle.dump(tabla_texto, tabla_texto_file)
-  
-  
-# Cargar objeto
-  # Step 2
-with open('tabla_texto.py', 'rb') as tabla_texto_file:
- 
-    # Step 3
-    tabla_texto2 = pickle.load(tabla_texto_file)
-    
-    
-# Excel
-tabla_texto.to_excel("tabla_texto.xlsx")
 
-pd.DataFrame(data=tokens_of_interest)
-data.to_excel("data.excel")
