@@ -9,8 +9,15 @@ Created on Tue May 14 12:52:08 2019
 import requests
 from bs4 import BeautifulSoup
 import re
+import itertools
+import pandas as pd
+import os
+import urllib
+import PyPDF2
 
+#------------------------------------------------
 # Scraping to extract PND text since 1961 to 2018
+#------------------------------------------------
 
 # Request html
 html = requests.get('https://www.dnp.gov.co/Plan-Nacional-de-Desarrollo/Paginas/Planes-de-Desarrollo-anteriores.aspx').text
@@ -37,114 +44,111 @@ years = re.findall('\d+-\d+', str(names))
 # Extract every link with regex
 links = re.findall("(?P<url>https?://[^\s]+)", str(documents))
 
-# Eliminar links que no pertenecen a capítulos
+# Delete links that do not belong to chapters
 del(links[91:113])
 del(links[0:6])
 del(links[0])
 del(links[84])
 
-# Extraer nombre de todos los capítulos y documentos
-prueba_capitulos = re.findall("textoRojo\">(.+?)<", str(documents))
+# Extract name of every chapter
+chapters = re.findall("textoRojo\">(.+?)<", str(documents))
 
-# Insertar capítulo faltante de Betancur
-prueba_capitulos.insert(40, 'Fundamentos Plan')
+# Insert missing chapter from Betancur
+chapters.insert(40, 'Fundamentos Plan')
 
-# Emparejar ambas listas
-del(prueba_capitulos[1])
+# Match both lists
+del(chapters[1])
 del(links[9])
 
 
-# Eliminar otros pdfs innecesarios
+# Remove other unnecessary pdfs
 del(links[0])
 del(links[2])
 del(links[4])
 del(links[4])
 
-# Completar capítulos para empareejar con links
-prueba_capitulos.insert(0, 'Santos I Tomo II')
-prueba_capitulos.insert(0, 'Santos I Tomo I')
-prueba_capitulos.insert(0, 'Santos II Tomo II')
-prueba_capitulos.insert(0, 'Santos II Tomo I')
+# Insert more missing chapters to match with 'links'
+chapters.insert(0, 'Santos I Tomo II')
+chapters.insert(0, 'Santos I Tomo I')
+chapters.insert(0, 'Santos II Tomo II')
+chapters.insert(0, 'Santos II Tomo I')
 
-# Limpiar links: quitar " al final de todos
-links_limpios = [s.replace('"', '') for s in links]
-links_limpios = [s.replace('><span', '') for s in links_limpios]
+# Clean links: Remove " at the end of element in list
+clean_links = [s.replace('"', '') for s in links]
+clean_links = [s.replace('><span', '') for s in clean_links]
 
-# Último plan de desarrollo
+# Last PND not available in initial html
 duque = 'https://colaboracion.dnp.gov.co/CDT/Prensa/BasesPND2018-2022n.pdf'
 
-# Insertar el documento en la lista y complementar los demás
-links_limpios.insert(0, duque)
-prueba_capitulos.insert(0, 'Pacto por Colombia pacto por la equidad')
+# Insert document in pdf list and fill the rest of the lists with its data
+clean_links.insert(0, duque)
+chapters.insert(0, 'Pacto por Colombia pacto por la equidad')
 names.insert(0, 'Pacto por Colombia pacto por la equidad (2018-2022) - Iván Duque')
 years.insert(0, '2018-2022')
 
+# Other PND not available in initial html
+uribe2_tome2 = "https://colaboracion.dnp.gov.co/CDT/PND/PND_Tomo_2.pdf"
 
-
-uribe2_tomo2 = "https://colaboracion.dnp.gov.co/CDT/PND/PND_Tomo_2.pdf"
-
-links_limpios.insert(5, uribe2_tomo2)
-prueba_capitulos.insert(5, 'Estado Comunitario_Tomo_2')
+clean_links.insert(5, uribe2_tome2)
+chapters.insert(5, 'Estado Comunitario_Tomo_2')
 names.insert(3, 'Estado Comunitario (2006-2010) - Alvaro Uribe Velez')
 years.insert(3, '2006-2010')
 
-uribe2_tomo1 = "https://colaboracion.dnp.gov.co/CDT/PND/PND_Tomo_1.pdf"
-links_limpios.insert(6, uribe2_tomo1)
-prueba_capitulos.insert(6, 'Estado Comunitario_Tomo_1')
+uribe2_tome1 = "https://colaboracion.dnp.gov.co/CDT/PND/PND_Tomo_1.pdf"
+clean_links.insert(6, uribe2_tome1)
+chapters.insert(6, 'Estado Comunitario_Tomo_1')
 
 
-# Emparejar nombre del plan con capítulos que le corresponde; lista de listas
-import itertools
+# Match number of chapters with its repeating name; list of lists
 rep_pnds = [names[0]] * 1, [names[1]] * 2, [names[2]] * 2, [names[3]] * 2, [names[4]] * 1, [names[5]] * 9, [names[6]] * 10, [names[7]] * 12, [names[8]] * 7, [names[9]] * 5, [names[10]] * 6, [names[11]] * 5, [names[12]] * 3, [names[13]] * 9, [names[14]] * 8
 
-# desenlistar rep_pnds para tener una sola lista
+# Unlist previous object
 lista_pnds = list(itertools.chain.from_iterable(rep_pnds))
 
-# Pegar la lista anterior al los links respectivos y sus capítulos en un data frame
-import pandas as pd
+#-------------------------------------------------------------------------
+# Paste previous list to its respective links and chapters in a data frame
+#-------------------------------------------------------------------------
 
-# Diccionario de cómo quiero dejar del dataframe
-dic = {'Planes Nacionales de Desarrollo':lista_pnds, 'Capítulos o tomos':prueba_capitulos, 'Link':links_limpios}
+# Dicctionary with the data frame columns
+dic = {'Planes Nacionales de Desarrollo':lista_pnds, 'Capítulos o tomos':chapters, 'Link':clean_links}
 
-# Dataframe con la información
-tabla_pnds = pd.DataFrame(dic, columns = ['Planes Nacionales de Desarrollo','Capítulos o tomos','Link'])
+# Convert dictionary to data frame
+pnd_table = pd.DataFrame(dic, columns = ['Planes Nacionales de Desarrollo','Capítulos o tomos','Link'])
 
 #os.chdir(r'C:/Users/ScmayorquinS/Desktop/PND Python scraping and mining/PDFs')
 
+#-----------------------------
+# Download in folder every pdf
+#-----------------------------
 
-#-------------------------
-# Descargar todos los PDFs
-#-------------------------
-import os
-import requests
-import urllib
+# External folder not in repository (size issue) - DNP
+download_directory = 'C:/Users/ScmayorquinS/Desktop/PND Python scraping and mining/PDFs'
+# Home
+download_directory =  'C:/Users/CamiloAndrés/Desktop/PND Python scraping and mining/PDFs'
 
-# Directorio En DNP
-directorio_descarga = 'C:/Users/ScmayorquinS/Desktop/PND Python scraping and mining/PDFs'
-# Directorio En casa
-directorio_descarga =  'C:/Users/CamiloAndrés/Desktop/PND Python scraping and mining/PDFs'
+# Numerate list of links to keep same order once downloaded
+sequence = list(range(82))
 
-# Enumerar lista de links para mantener el orden al descargarlos
-secuencia = list(range(82))
-
-# Para cada link en la lista de links_limpios
+# For every link in list: clean_links
 i = 0
-for url in links_limpios[0:82]:
-    # Partir hacia la derecha y tomar el texto que le sigue
-    name = str(secuencia[i]) + str('. ') + url.rsplit('/', 1)[-1]
+for url in clean_links[0:82]:
+    # Split to the right and take text next to it
+    name = str(sequence[i]) + str('. ') + url.rsplit('/', 1)[-1]
 
-    # Combinar el nombre con el directorio para obtener el path del archivo a guardar
-    filename = os.path.join(directorio_descarga, name)
+    # Combina name with directory to obtain download path
+    filename = os.path.join(download_directory, name)
 
-    # Si el archivo no existe, descargarlo
+    # If file does no exist, download it
     if not os.path.isfile(filename):
         urllib.request.urlretrieve(url, filename)
     i = i + 1
 
-#--------------------------
-# Leer pdfs y extraer texto
-#--------------------------
-import PyPDF2
+
+#---------------------------
+# Read pdfs and text extract
+#---------------------------
+    
+
 # Directorio de trabajo de trabajo de forma absoluta
 # Si esta línea no se corre, el for para extraer el texto del pdf leído no funciona por llamar la ruta de forma relativa
 # En DNP
