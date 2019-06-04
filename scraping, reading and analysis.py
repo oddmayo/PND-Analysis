@@ -4,107 +4,61 @@ Created on Tue May 14 12:52:08 2019
 
 @author: ScmayorquinS
 """
-#-----------------------------
-# Parte que adelantó Alejandra
-#-----------------------------
 
+# Necessary libraries
 import requests
 from bs4 import BeautifulSoup
-
-# Scraping para extraer los pdfs en los PND desde 1961
-
-# Ejemplo para Alberto Lleras Camargo 1961 - 1070
-html = requests.get('https://www.dnp.gov.co/Plan-Nacional-de-Desarrollo/Paginas/Planes-de-Desarrollo-anteriores.aspx').text
-
-# estructurar datos a partir de archivos HTML
-soup = BeautifulSoup(html,'lxml')
-
-type(soup)
-
-# presentar HTML en estructura de fácil lectura
-pretty = soup.prettify()
-
-soup.title
-
-# Extraer todos capítulos/partes/tomos de los PND
-todo = soup.find_all('a')
-
-# Como lo anterior no extrae los nombres de los planes, los extraigo por aparte
-planes=soup.find_all('span')
-planes
-
-type(planes)
-
-str(planes)
-
 import re
 
-# Extraer solo los nombres de los planes utilizando regex
-names=re.findall("FondoGris\">(.+?)<", str(planes))
-names
+# Scraping to extract PND text since 1961 to 2018
 
-names[1]
+# Request html
+html = requests.get('https://www.dnp.gov.co/Plan-Nacional-de-Desarrollo/Paginas/Planes-de-Desarrollo-anteriores.aspx').text
 
-anios =re.findall('\d+-\d+', str(names))
+# Html structure
+soup = BeautifulSoup(html,'lxml')
 
-'''
-#Voy a crear una lista para cada plan, en la cual voy a meter todos los capitulos que le correspondan
-for i in range(len(names)):
-    anios_i=[]
-    anios_i = anios_i.append([names[i],0,0,0])
-    print (anios_i)
-'''
+# Easy reading html
+pretty = soup.prettify()
 
-plans = list(planes)
+# 'a' tag contains every document in web page
+documents = soup.find_all('a')
 
-# Ejemplo para uno
-Lleras_Camargo = []
-Lleras_Camargo.append(anios[12])
-Lleras_Camargo.append(names[12])
+# 'span' tag contains the name of every PND
+dirty_names = soup.find_all('span')
 
-#para meterle los capítulos
-planes_prueba = list(planes)
-capitulos_Lleras_Camargo = planes[129:137]
+# Use regex to extract the names of every PND
+names = re.findall("FondoGris\">(.+?)<", str(dirty_names))
 
-capitulos_Lleras_Camargo
-nombres_capitulos_Lleras_Camargo = re.findall("textoRojo\">(.+?)<", str(capitulos_Lleras_Camargo))
+# Use regex to extract years from names
+years = re.findall('\d+-\d+', str(names))
 
-# En 'todo' se encuentran almacenados los links
-links_Lleras_Camargo = todo[95:105]
 
-# Sacar un link
-link_ejemplo = re.search("(?P<url>https?://[^\s]+)", str(links_Lleras_Camargo[1])).group("url")
-links_Lleras_Camargo_final = re.findall("(?P<url>https?://[^\s]+)", str(links_Lleras_Camargo))
-
-#--------------------------
-# Parte que adenlató Camilo
-#--------------------------
-
-# Extraer todos los links de la página con regex
-prueba_links = re.findall("(?P<url>https?://[^\s]+)", str(todo))
+# Extract every link with regex
+links = re.findall("(?P<url>https?://[^\s]+)", str(documents))
 
 # Eliminar links que no pertenecen a capítulos
-del(prueba_links[91:113])
-del(prueba_links[0:6])
-del(prueba_links[0])
-del(prueba_links[84])
+del(links[91:113])
+del(links[0:6])
+del(links[0])
+del(links[84])
 
 # Extraer nombre de todos los capítulos y documentos
-prueba_capitulos = re.findall("textoRojo\">(.+?)<", str(todo))
+prueba_capitulos = re.findall("textoRojo\">(.+?)<", str(documents))
 
 # Insertar capítulo faltante de Betancur
 prueba_capitulos.insert(40, 'Fundamentos Plan')
 
 # Emparejar ambas listas
 del(prueba_capitulos[1])
-del(prueba_links[9])
+del(links[9])
 
 
 # Eliminar otros pdfs innecesarios
-del(prueba_links[0])
-del(prueba_links[2])
-del(prueba_links[4])
-del(prueba_links[4])
+del(links[0])
+del(links[2])
+del(links[4])
+del(links[4])
 
 # Completar capítulos para empareejar con links
 prueba_capitulos.insert(0, 'Santos I Tomo II')
@@ -113,7 +67,7 @@ prueba_capitulos.insert(0, 'Santos II Tomo II')
 prueba_capitulos.insert(0, 'Santos II Tomo I')
 
 # Limpiar links: quitar " al final de todos
-links_limpios = [s.replace('"', '') for s in prueba_links]
+links_limpios = [s.replace('"', '') for s in links]
 links_limpios = [s.replace('><span', '') for s in links_limpios]
 
 # Último plan de desarrollo
@@ -123,7 +77,7 @@ duque = 'https://colaboracion.dnp.gov.co/CDT/Prensa/BasesPND2018-2022n.pdf'
 links_limpios.insert(0, duque)
 prueba_capitulos.insert(0, 'Pacto por Colombia pacto por la equidad')
 names.insert(0, 'Pacto por Colombia pacto por la equidad (2018-2022) - Iván Duque')
-anios.insert(0, '2018-2022')
+years.insert(0, '2018-2022')
 
 
 
@@ -132,7 +86,7 @@ uribe2_tomo2 = "https://colaboracion.dnp.gov.co/CDT/PND/PND_Tomo_2.pdf"
 links_limpios.insert(5, uribe2_tomo2)
 prueba_capitulos.insert(5, 'Estado Comunitario_Tomo_2')
 names.insert(3, 'Estado Comunitario (2006-2010) - Alvaro Uribe Velez')
-anios.insert(3, '2006-2010')
+years.insert(3, '2006-2010')
 
 uribe2_tomo1 = "https://colaboracion.dnp.gov.co/CDT/PND/PND_Tomo_1.pdf"
 links_limpios.insert(6, uribe2_tomo1)
