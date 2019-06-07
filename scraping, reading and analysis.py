@@ -278,6 +278,7 @@ with open('C:/Users/ScmayorquinS/Desktop/PND Python scraping and mining/texto to
 row = ['Santos 2014-2018 tomo I', santos_tome]
 text_table.loc[0] = row
 
+# Split from here
 
 #-----------------------------------------
 # Análisis de texto
