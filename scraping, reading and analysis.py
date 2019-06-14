@@ -286,15 +286,7 @@ text_table.loc[0] = row
 
 import nltk
 
-
-# In[84]:
-
-
-type(tabla_texto['Texto'])
-
-
-# In[86]:
-
+# method for all tokens with split, gotta see if itemize works better
 all_tokens = []
 for i in range(len(tabla_texto['Texto'])):
     a_few_tokens = str(tabla_texto['Texto'][i]).split()
